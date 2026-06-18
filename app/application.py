@@ -20,7 +20,7 @@ def run(argv: Sequence[str] | None = None) -> int:
     bootstrap_database(config.database_path)
 
     app = QApplication(list(argv) if argv is not None else sys.argv)
-    app.setApplicationName(config.app_name)
+    app.setApplicationName(config.project_name)
     app.setOrganizationName("Film Publisher")
 
     window = MainWindow(config=config)

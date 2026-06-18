@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._config = config
 
-        self.setWindowTitle(config.app_name)
+        self.setWindowTitle(config.project_name)
         self.resize(920, 560)
 
         self.setCentralWidget(self._build_central_widget())
@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
         root_layout.setContentsMargins(24, 24, 24, 24)
         root_layout.setSpacing(18)
 
-        title = QLabel(self._config.app_name, root)
+        title = QLabel(self._config.project_name, root)
         title.setObjectName("titleLabel")
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         title.setStyleSheet("font-size: 24px; font-weight: 600;")
@@ -49,10 +49,14 @@ class MainWindow(QMainWindow):
         details_layout.setContentsMargins(16, 16, 16, 16)
         details_layout.setSpacing(10)
 
-        details_layout.addRow("Database", QLabel(str(self._config.database_path), details_frame))
         details_layout.addRow(
-            "Box Drive",
-            QLabel(str(self._config.box_drive_root) if self._config.box_drive_root else "Not configured", details_frame),
+            "Project Root", QLabel(str(self._config.project_root), details_frame)
+        )
+        details_layout.addRow(
+            "Box Root", QLabel(str(self._config.box_root), details_frame)
+        )
+        details_layout.addRow(
+            "Asset Root", QLabel(str(self._config.asset_root), details_frame)
         )
 
         root_layout.addWidget(details_frame)

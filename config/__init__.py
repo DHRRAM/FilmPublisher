@@ -1,6 +1,6 @@
 """Configuration management for Film Publisher."""
 
-from film_publisher.config.manager import (
+from config.manager import (
     AppConfig,
     ConfigManager,
     ConfigValidationError,

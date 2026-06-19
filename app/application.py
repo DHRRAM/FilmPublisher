@@ -7,9 +7,9 @@ from collections.abc import Sequence
 
 from PySide6.QtWidgets import QApplication
 
-from film_publisher.config.manager import ConfigManager
-from film_publisher.database.bootstrap import bootstrap_database
-from film_publisher.ui.main_window import MainWindow
+from config.manager import ConfigManager
+from database.bootstrap import bootstrap_database
+from ui.main_window import MainWindow
 
 
 def run(argv: Sequence[str] | None = None) -> int:

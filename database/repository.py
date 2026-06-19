@@ -5,31 +5,10 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from pathlib import Path
 
-from film_publisher.database.bootstrap import bootstrap_database
-
-
-@dataclass(frozen=True, slots=True)
-class Asset:
-    """A persisted publishable asset."""
-
-    id: int
-    name: str
-    asset_type: str
-    created_date: str
-
-
-@dataclass(frozen=True, slots=True)
-class Publish:
-    """A persisted version published for an asset."""
-
-    id: int
-    asset_id: int
-    version: int
-    publish_date: str
-    file_path: str
+from core.models import Asset, PublishRecord
+from database.bootstrap import bootstrap_database
 
 
 class SQLiteRepository:
@@ -130,7 +109,7 @@ class SQLiteRepository:
         version: int,
         file_path: Path | str,
         publish_date: str | None = None,
-    ) -> Publish:
+    ) -> PublishRecord:
         """Create and return a publish for an existing asset."""
 
         with self._connect() as connection:
@@ -157,7 +136,7 @@ class SQLiteRepository:
             ).fetchone()
         return self._publish_from_row(row)
 
-    def get_publish(self, publish_id: int) -> Publish | None:
+    def get_publish(self, publish_id: int) -> PublishRecord | None:
         """Return a publish by ID, or None when it does not exist."""
 
         with self._connect() as connection:
@@ -167,7 +146,7 @@ class SQLiteRepository:
             ).fetchone()
         return self._publish_from_row(row) if row is not None else None
 
-    def list_publishes(self, asset_id: int | None = None) -> list[Publish]:
+    def list_publishes(self, asset_id: int | None = None) -> list[PublishRecord]:
         """Return all publishes, optionally restricted to one asset."""
 
         with self._connect() as connection:
@@ -194,7 +173,7 @@ class SQLiteRepository:
         version: int | None = None,
         publish_date: str | None = None,
         file_path: Path | str | None = None,
-    ) -> Publish | None:
+    ) -> PublishRecord | None:
         """Update supplied publish fields and return the updated record."""
 
         changes: dict[str, object | None] = {
@@ -242,8 +221,8 @@ class SQLiteRepository:
         )
 
     @staticmethod
-    def _publish_from_row(row: sqlite3.Row) -> Publish:
-        return Publish(
+    def _publish_from_row(row: sqlite3.Row) -> PublishRecord:
+        return PublishRecord(
             id=row["id"],
             asset_id=row["asset_id"],
             version=row["version"],

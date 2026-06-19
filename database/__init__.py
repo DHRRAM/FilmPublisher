@@ -1,6 +1,12 @@
 """SQLite database access and bootstrap helpers."""
 
-from film_publisher.database.bootstrap import bootstrap_database
-from film_publisher.database.repository import Asset, Publish, SQLiteRepository
+from core.models import Asset, PublishRecord
+from database.bootstrap import bootstrap_database
+from database.repository import Asset, Publish, SQLiteRepository
 
-__all__ = ["Asset", "Publish", "SQLiteRepository", "bootstrap_database"]
+__all__ = [
+    "Asset",
+    "PublishRecord",
+    "SQLiteRepository",
+    "bootstrap_database",
+]

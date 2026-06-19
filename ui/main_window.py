@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from film_publisher.config.manager import AppConfig
+from config.manager import AppConfig
 
 
 class MainWindow(QMainWindow):

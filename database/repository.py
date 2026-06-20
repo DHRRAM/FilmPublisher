@@ -9,6 +9,7 @@ from pathlib import Path
 
 from core.models import Asset, PublishRecord
 from database.bootstrap import bootstrap_database
+from services.versioning import parse_version
 
 
 class SQLiteRepository:
@@ -110,9 +111,32 @@ class SQLiteRepository:
         file_path: Path | str,
         publish_date: str | None = None,
     ) -> PublishRecord:
-        """Create and return a publish for an existing asset."""
+        """Create a publish whose version matches its versioned filename."""
+
+        parsed = parse_version(file_path)
+        if parsed is None:
+            raise ValueError(
+                "Publish filenames must use the '<name>_vNNN.<ext>' format."
+            )
+        if parsed.version != version:
+            raise ValueError(
+                f"Publish version {version} does not match filename version "
+                f"{parsed.version}."\
+            )
 
         with self._connect() as connection:
+            existing = connection.execute(
+                """
+                SELECT 1 FROM publishes
+                WHERE asset_id = ? AND version = ?;
+                """,
+                (asset_id, version),
+            ).fetchone()
+            if existing is not None:
+                raise ValueError(
+                    f"Asset {asset_id} already has publish version {version}."
+                )
+
             if publish_date is None:
                 cursor = connection.execute(
                     """
@@ -135,6 +159,26 @@ class SQLiteRepository:
                 (cursor.lastrowid,),
             ).fetchone()
         return self._publish_from_row(row)
+
+    def create_versioned_publish(
+        self,
+        asset_id: int,
+        file_path: Path | str,
+        publish_date: str | None = None,
+    ) -> PublishRecord:
+        """Parse the file version and create the corresponding database record."""
+
+        parsed = parse_version(file_path)
+        if parsed is None:
+            raise ValueError(
+                "Publish filenames must use the '<name>_vNNN.<ext>' format."
+            )
+        return self.create_publish(
+            asset_id=asset_id,
+            version=parsed.version,
+            file_path=file_path,
+            publish_date=publish_date,
+        )
 
     def get_publish(self, publish_id: int) -> PublishRecord | None:
         """Return a publish by ID, or None when it does not exist."""
@@ -164,6 +208,36 @@ class SQLiteRepository:
                     (asset_id,),
                 ).fetchall()
         return [self._publish_from_row(row) for row in rows]
+
+    def get_latest_publish(self, asset_id: int) -> PublishRecord | None:
+        """Return the highest-versioned publish for an asset."""
+
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM publishes
+                WHERE asset_id = ?
+                ORDER BY version DESC, id DESC
+                LIMIT 1;
+                """,
+                (asset_id,),
+            ).fetchone()
+        return self._publish_from_row(row) if row is not None else None
+
+    def get_latest_version(self, asset_id: int) -> int | None:
+        """Return the latest recorded version for an asset."""
+
+        latest = self.get_latest_publish(asset_id)
+        return latest.version if latest is not None else None
+
+    def get_next_version(self, asset_id: int) -> int:
+        """Return the next publish version for an asset, starting at 1."""
+
+        latest = self.get_latest_version(asset_id)
+        next_version = 1 if latest is None else latest + 1
+        if next_version > 999:
+            raise ValueError("Version limit of 999 has been reached.")
+        return next_version
 
     def update_publish(
         self,

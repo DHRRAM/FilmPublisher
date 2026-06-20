@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def bootstrap_database(database_path: Path | str) -> Path:
@@ -46,6 +46,9 @@ def bootstrap_database(database_path: Path | str) -> Path:
 
             CREATE INDEX IF NOT EXISTS idx_publishes_asset_id
             ON publishes (asset_id);
+
+            CREATE INDEX IF NOT EXISTS idx_publishes_asset_version
+            ON publishes (asset_id, version DESC);
             """
         )
         connection.execute(

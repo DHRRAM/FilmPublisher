@@ -19,7 +19,7 @@ def run(argv: Sequence[str] | None = None) -> int:
     config_manager = ConfigManager()
     config = config_manager.load()
     repository = SQLiteRepository(config.database_path)
-    publisher = PublisherService(repository, config.asset_root)
+    publisher = PublisherService(repository, config.asset_root, config.box_root)
 
     app = QApplication(list(argv) if argv is not None else sys.argv)
     app.setApplicationName(config.project_name)

@@ -1,4 +1,4 @@
-"""Local asset publishing workflow."""
+"""Local and Box Drive asset publishing workflow."""
 
 from __future__ import annotations
 
@@ -28,15 +28,17 @@ class PublishRepository(Protocol):
 
 
 class PublisherService:
-    """Publish source files into the local asset library."""
+    """Publish source files into the local asset library and Box Drive."""
 
     def __init__(
         self,
         repository: PublishRepository,
         asset_root: Path | str,
+        box_root: Path | str,
     ) -> None:
         self._repository = repository
         self._asset_root = Path(asset_root).expanduser()
+        self._box_root = Path(box_root).expanduser()
 
     def publish(self, source_file: Path | str, asset_id: int) -> PublishRecord:
         """Publish a new version of ``source_file`` for an existing asset."""
@@ -56,6 +58,11 @@ class PublisherService:
             asset.asset_type,
             asset.name,
         )
+        box_folders = create_asset_folder_structure(
+            self._box_root,
+            asset.asset_type,
+            asset.name,
+        )
         version_sources = [
             *self._repository.list_publishes(asset.id),
             *folders.versions.iterdir(),
@@ -66,6 +73,10 @@ class PublisherService:
 
         shutil.copy2(source, version_path)
         self._update_latest(version_path, folders.latest)
+
+        box_version_path = box_folders.versions / filename
+        shutil.copy2(version_path, box_version_path)
+        self._update_latest(box_version_path, box_folders.latest)
 
         return self._repository.create_publish(
             asset_id=asset.id,

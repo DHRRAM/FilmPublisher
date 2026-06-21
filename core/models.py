@@ -24,3 +24,4 @@ class PublishRecord:
     version: int
     publish_date: str
     file_path: str
+    thumbnail_path: str | None = None

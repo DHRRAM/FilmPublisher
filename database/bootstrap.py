@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 def bootstrap_database(database_path: Path | str) -> Path:
@@ -41,6 +41,7 @@ def bootstrap_database(database_path: Path | str) -> Path:
                 version INTEGER NOT NULL,
                 publish_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 file_path TEXT NOT NULL,
+                thumbnail_path TEXT,
                 FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE
             );
 
@@ -51,6 +52,13 @@ def bootstrap_database(database_path: Path | str) -> Path:
             ON publishes (asset_id, version DESC);
             """
         )
+        publish_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(publishes);")
+        }
+        if "thumbnail_path" not in publish_columns:
+            connection.execute(
+                "ALTER TABLE publishes ADD COLUMN thumbnail_path TEXT;"
+            )
         connection.execute(
             "UPDATE schema_version SET version = ? WHERE id = 1;",
             (SCHEMA_VERSION,),

@@ -11,6 +11,9 @@ from services.folder_structure import create_asset_folder_structure
 from services.versioning import format_versioned_filename, get_next_version
 
 
+SUPPORTED_THUMBNAIL_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+
+
 class PublishRepository(Protocol):
     """Database operations required by the publisher service."""
 
@@ -24,6 +27,7 @@ class PublishRepository(Protocol):
         version: int,
         file_path: Path | str,
         publish_date: str | None = None,
+        thumbnail_path: Path | str | None = None,
     ) -> PublishRecord: ...
 
 
@@ -78,11 +82,38 @@ class PublisherService:
         shutil.copy2(version_path, box_version_path)
         self._update_latest(box_version_path, box_folders.latest)
 
+        thumbnail_path = None
+        thumbnail_source = self._find_thumbnail(source)
+        if thumbnail_source is not None:
+            thumbnail_path = folders.thumbnails / thumbnail_source.name
+            shutil.copy2(thumbnail_source, thumbnail_path)
+            shutil.copy2(
+                thumbnail_source,
+                box_folders.thumbnails / thumbnail_source.name,
+            )
+
         return self._repository.create_publish(
             asset_id=asset.id,
             version=version,
             file_path=version_path,
+            thumbnail_path=thumbnail_path,
         )
+
+    @staticmethod
+    def _find_thumbnail(source: Path) -> Path | None:
+        """Return a deterministic supported image next to the source asset."""
+
+        candidates = sorted(
+            (
+                path
+                for path in source.parent.iterdir()
+                if path != source
+                and path.is_file()
+                and path.suffix.casefold() in SUPPORTED_THUMBNAIL_EXTENSIONS
+            ),
+            key=lambda path: (path.stem.casefold() != source.stem.casefold(), path.name.casefold()),
+        )
+        return candidates[0] if candidates else None
 
     @staticmethod
     def _update_latest(version_path: Path, latest_folder: Path) -> None:

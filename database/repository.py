@@ -110,6 +110,7 @@ class SQLiteRepository:
         version: int,
         file_path: Path | str,
         publish_date: str | None = None,
+        thumbnail_path: Path | str | None = None,
     ) -> PublishRecord:
         """Create a publish whose version matches its versioned filename."""
 
@@ -140,19 +141,31 @@ class SQLiteRepository:
             if publish_date is None:
                 cursor = connection.execute(
                     """
-                    INSERT INTO publishes (asset_id, version, file_path)
-                    VALUES (?, ?, ?);
+                    INSERT INTO publishes
+                        (asset_id, version, file_path, thumbnail_path)
+                    VALUES (?, ?, ?, ?);
                     """,
-                    (asset_id, version, str(file_path)),
+                    (
+                        asset_id,
+                        version,
+                        str(file_path),
+                        str(thumbnail_path) if thumbnail_path is not None else None,
+                    ),
                 )
             else:
                 cursor = connection.execute(
                     """
                     INSERT INTO publishes
-                        (asset_id, version, publish_date, file_path)
-                    VALUES (?, ?, ?, ?);
+                        (asset_id, version, publish_date, file_path, thumbnail_path)
+                    VALUES (?, ?, ?, ?, ?);
                     """,
-                    (asset_id, version, publish_date, str(file_path)),
+                    (
+                        asset_id,
+                        version,
+                        publish_date,
+                        str(file_path),
+                        str(thumbnail_path) if thumbnail_path is not None else None,
+                    ),
                 )
             row = connection.execute(
                 "SELECT * FROM publishes WHERE id = ?;",
@@ -165,6 +178,7 @@ class SQLiteRepository:
         asset_id: int,
         file_path: Path | str,
         publish_date: str | None = None,
+        thumbnail_path: Path | str | None = None,
     ) -> PublishRecord:
         """Parse the file version and create the corresponding database record."""
 
@@ -178,6 +192,7 @@ class SQLiteRepository:
             version=parsed.version,
             file_path=file_path,
             publish_date=publish_date,
+            thumbnail_path=thumbnail_path,
         )
 
     def get_publish(self, publish_id: int) -> PublishRecord | None:
@@ -247,6 +262,7 @@ class SQLiteRepository:
         version: int | None = None,
         publish_date: str | None = None,
         file_path: Path | str | None = None,
+        thumbnail_path: Path | str | None = None,
     ) -> PublishRecord | None:
         """Update supplied publish fields and return the updated record."""
 
@@ -255,6 +271,9 @@ class SQLiteRepository:
             "version": version,
             "publish_date": publish_date,
             "file_path": str(file_path) if file_path is not None else None,
+            "thumbnail_path": (
+                str(thumbnail_path) if thumbnail_path is not None else None
+            ),
         }
         return self._update_record(
             "publishes", publish_id, changes, self._publish_from_row
@@ -302,4 +321,5 @@ class SQLiteRepository:
             version=row["version"],
             publish_date=row["publish_date"],
             file_path=row["file_path"],
+            thumbnail_path=row["thumbnail_path"],
         )

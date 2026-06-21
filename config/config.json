@@ -1,6 +1,6 @@
 {
   "project_name": "Film Publisher",
   "project_root": "~/.film_publisher/projects/default",
-  "box_root": "~/.film_publisher/box",
+  "box_root": "~/Box",
   "asset_root": "~/.film_publisher/projects/default/assets"
 }

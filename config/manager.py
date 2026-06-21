@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +12,8 @@ APP_HOME = Path.home() / ".film_publisher"
 DEFAULT_CONFIG_PATH = APP_HOME / "config.json"
 DEFAULT_DATABASE_PATH = APP_HOME / "film_publisher.sqlite3"
 DEFAULT_PROJECT_ROOT = APP_HOME / "projects" / "default"
-DEFAULT_BOX_ROOT = APP_HOME / "box"
+LEGACY_LOCAL_BOX_ROOT = APP_HOME / "box"
+DEFAULT_BOX_ROOT = Path.home() / "Box"
 DEFAULT_ASSET_ROOT = DEFAULT_PROJECT_ROOT / "assets"
 
 REQUIRED_SETTINGS = ("project_name", "project_root", "box_root", "asset_root")
@@ -64,7 +65,17 @@ class ConfigManager:
             raise ConfigValidationError("Configuration must be a JSON object.")
 
         config = self._from_dict(raw_config)
-        if any(setting not in raw_config for setting in REQUIRED_SETTINGS):
+        migrate_legacy_box_root = (
+            config.box_root == LEGACY_LOCAL_BOX_ROOT.resolve()
+            and DEFAULT_BOX_ROOT.exists()
+        )
+        if migrate_legacy_box_root:
+            config = replace(config, box_root=DEFAULT_BOX_ROOT.resolve())
+
+        if (
+            any(setting not in raw_config for setting in REQUIRED_SETTINGS)
+            or migrate_legacy_box_root
+        ):
             self.save(config)
 
         return config

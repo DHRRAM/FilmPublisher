@@ -281,7 +281,7 @@ class MainWindow(QMainWindow):
         if not hasattr(self, "empty_history_label"):
             return
         viewport = self.history_table.viewport()
-        self,self.empty_history_label.setGeometry(viewport.rect())
+        self.empty_history_label.setGeometry(viewport.rect())
         self.empty_history_label.raise_()
 
     def _expected_publish_location(self) -> str:
@@ -297,7 +297,7 @@ class MainWindow(QMainWindow):
     def _update_publish_state(self) -> None:
         can_publish = (
             self._selected_file is not None
-            and bool(self.self.category_combo.currentText())
+            and bool(self.category_combo.currentText())
         )
         self.publish_button.setEnabled(can_publish)
 
@@ -307,4 +307,3 @@ class MainWindow(QMainWindow):
         self.publish_button.setEnabled(not busy and self._selected_file is not None)
         if busy:
             self.statusBar().showMessage("Publishing...")
-

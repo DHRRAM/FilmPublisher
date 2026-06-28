@@ -1,8 +1,15 @@
 """Application services for Film Publisher."""
 
+from services.asset_classification import (
+    ASSET_DIRECTORIES,
+    EXTENSION_REGISTRY,
+    FILE_TYPE_REGISTRY,
+    SUPPORTED_EXTENSIONS,
+    AssetFileType,
+    classify_asset_file,
+)
 from services.folder_structure import (
     ASSET_SUBFOLDERS,
-    SUPPORTED_CATEGORIES,
     AssetFolderStructure,
     create_asset_folder_structure,
 )
@@ -16,12 +23,17 @@ from services.versioning import (
 )
 
 __all__ = [
+    "ASSET_DIRECTORIES",
     "ASSET_SUBFOLDERS",
-    "SUPPORTED_CATEGORIES",
+    "EXTENSION_REGISTRY",
+    "FILE_TYPE_REGISTRY",
+    "SUPPORTED_EXTENSIONS",
+    "AssetFileType",
     "AssetFolderStructure",
     "ParsedVersion",
     "PublishRepository",
     "PublisherService",
+    "classify_asset_file",
     "create_asset_folder_structure",
     "format_versioned_filename",
     "get_latest_version",

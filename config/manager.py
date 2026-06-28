@@ -13,7 +13,7 @@ DEFAULT_CONFIG_PATH = APP_HOME / "config.json"
 DEFAULT_DATABASE_PATH = APP_HOME / "film_publisher.sqlite3"
 DEFAULT_PROJECT_ROOT = APP_HOME / "projects" / "default"
 LEGACY_LOCAL_BOX_ROOT = APP_HOME / "box"
-DEFAULT_BOX_ROOT = Path.home() / "Box"
+DEFAULT_BOX_ROOT = Path.home() / "Box" / "ShortFilm"
 DEFAULT_ASSET_ROOT = DEFAULT_PROJECT_ROOT / "assets"
 
 REQUIRED_SETTINGS = ("project_name", "project_root", "box_root", "asset_root")

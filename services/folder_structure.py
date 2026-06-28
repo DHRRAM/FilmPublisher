@@ -1,13 +1,14 @@
-"""Folder structure generation for published assets."""
+"""Folder structure generation for local and synchronized assets."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
 
+from services.asset_classification import ASSET_DIRECTORIES, AssetFileType
 
-SUPPORTED_CATEGORIES = ("Characters", "Props", "Environment")
-ASSET_SUBFOLDERS = ("Versions", "Latest", "Thumbnails")
+
+ASSET_SUBFOLDERS = tuple(path.as_posix() for path in ASSET_DIRECTORIES)
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,14 +16,16 @@ class AssetFolderStructure:
     """Paths created for a published asset."""
 
     root: Path
-    versions: Path
-    latest: Path
     thumbnails: Path
+
+    def destination_for(self, file_type: AssetFileType) -> Path:
+        """Return the leaf destination for a classified file type."""
+
+        return self.root / file_type.relative_directory
 
 
 def create_asset_folder_structure(
     asset_root: Path | str,
-    category: str,
     asset_name: str,
 ) -> AssetFolderStructure:
     """Create and return the standard folder structure for an asset.
@@ -31,35 +34,17 @@ def create_asset_folder_structure(
     asset preserves the current folders and their contents.
     """
 
-    canonical_category = _canonical_category(category)
     clean_asset_name = _validate_asset_name(asset_name)
-    root = Path(asset_root).expanduser() / canonical_category / clean_asset_name
+    root = Path(asset_root).expanduser() / clean_asset_name
 
     folders = AssetFolderStructure(
         root=root,
-        versions=root / "Versions",
-        latest=root / "Latest",
         thumbnails=root / "Thumbnails",
     )
-    for folder in (folders.versions, folders.latest, folders.thumbnails):
-        folder.mkdir(parents=True, exist_ok=True)
+    for relative_directory in ASSET_DIRECTORIES:
+        (root / relative_directory).mkdir(parents=True, exist_ok=True)
 
     return folders
-
-
-def _canonical_category(category: str) -> str:
-    if not isinstance(category, str) or not category.strip():
-        raise ValueError("Asset category must be a non-empty string.")
-
-    normalized = category.strip().casefold()
-    for supported_category in SUPPORTED_CATEGORIES:
-        if supported_category.casefold() == normalized:
-            return supported_category
-
-    supported = ", ".join(SUPPORTED_CATEGORIES)
-    raise ValueError(
-        f"Unsupported asset category '{category}'. Supported categories: {supported}."
-    )
 
 
 def _validate_asset_name(asset_name: str) -> str:

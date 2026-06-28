@@ -1,4 +1,4 @@
-"""Domain models for publishable assets and their publish history."""
+"""Domain models for publishable assets, dependencies, and publish history."""
 
 from __future__ import annotations
 
@@ -11,8 +11,19 @@ class Asset:
 
     id: int
     name: str
-    asset_type: str
     created_date: str
+
+
+@dataclass(frozen=True, slots=True)
+class AssetDependency:
+    """A directed relationship from one asset to another asset it references."""
+
+    id: int
+    asset_id: int
+    depends_on_asset_id: int
+    dependency_type: str
+    created_date: str
+    metadata_json: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,11 +7,12 @@ from pathlib import Path
 from typing import Protocol
 
 from core.models import Asset, PublishRecord
+from services.asset_classification import (
+    THUMBNAIL_EXTENSIONS,
+    classify_asset_file,
+)
 from services.folder_structure import create_asset_folder_structure
 from services.versioning import format_versioned_filename, get_next_version
-
-
-SUPPORTED_THUMBNAIL_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 
 class PublishRepository(Protocol):
@@ -32,7 +33,7 @@ class PublishRepository(Protocol):
 
 
 class PublisherService:
-    """Publish source files into the local asset library and Box Drive."""
+    """Classify and publish asset files locally and to Box Drive."""
 
     def __init__(
         self,
@@ -57,39 +58,43 @@ class PublisherService:
         if asset is None:
             raise ValueError(f"Asset {asset_id} does not exist.")
 
+        file_type = classify_asset_file(source)
         folders = create_asset_folder_structure(
             self._asset_root,
-            asset.asset_type,
             asset.name,
         )
         box_folders = create_asset_folder_structure(
             self._box_root,
-            asset.asset_type,
             asset.name,
         )
+        destination = folders.destination_for(file_type)
+        box_destination = box_folders.destination_for(file_type)
         version_sources = [
             *self._repository.list_publishes(asset.id),
-            *folders.versions.iterdir(),
+            *destination.iterdir(),
         ]
         version = get_next_version(version_sources)
         filename = format_versioned_filename(asset.name, version, source.suffix)
-        version_path = folders.versions / filename
+        version_path = destination / filename
 
         shutil.copy2(source, version_path)
-        self._update_latest(version_path, folders.latest)
 
-        box_version_path = box_folders.versions / filename
+        box_version_path = box_destination / filename
         shutil.copy2(version_path, box_version_path)
-        self._update_latest(box_version_path, box_folders.latest)
 
         thumbnail_path = None
         thumbnail_source = self._find_thumbnail(source)
         if thumbnail_source is not None:
-            thumbnail_path = folders.thumbnails / thumbnail_source.name
+            thumbnail_filename = format_versioned_filename(
+                asset.name,
+                version,
+                thumbnail_source.suffix,
+            )
+            thumbnail_path = folders.thumbnails / thumbnail_filename
             shutil.copy2(thumbnail_source, thumbnail_path)
             shutil.copy2(
                 thumbnail_source,
-                box_folders.thumbnails / thumbnail_source.name,
+                box_folders.thumbnails / thumbnail_filename,
             )
 
         return self._repository.create_publish(
@@ -109,24 +114,8 @@ class PublisherService:
                 for path in source.parent.iterdir()
                 if path != source
                 and path.is_file()
-                and path.suffix.casefold() in SUPPORTED_THUMBNAIL_EXTENSIONS
+                and path.suffix.casefold() in THUMBNAIL_EXTENSIONS
             ),
             key=lambda path: (path.stem.casefold() != source.stem.casefold(), path.name.casefold()),
         )
         return candidates[0] if candidates else None
-
-    @staticmethod
-    def _update_latest(version_path: Path, latest_folder: Path) -> None:
-        """Replace the current local latest file with the new version."""
-
-        latest_path = latest_folder / version_path.name
-        temporary_path = latest_folder / f".{version_path.name}.tmp"
-        shutil.copy2(version_path, temporary_path)
-
-        for existing_path in latest_folder.iterdir():
-            if existing_path != temporary_path and (
-                existing_path.is_file() or existing_path.is_symlink()
-            ):
-                existing_path.unlink()
-
-        temporary_path.replace(latest_path)

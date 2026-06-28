@@ -7,7 +7,6 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QComboBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QStatusBar,
+    QTabWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -28,8 +28,9 @@ from PySide6.QtWidgets import (
 from config.manager import AppConfig
 from core.models import Asset, PublishRecord
 from database.repository import SQLiteRepository
-from services.folder_structure import SUPPORTED_CATEGORIES
+from services.asset_classification import AssetFileType, classify_asset_file
 from services.publisher import PublisherService
+from ui.asset_browser import AssetBrowserWidget
 
 
 class MainWindow(QMainWindow):
@@ -46,6 +47,7 @@ class MainWindow(QMainWindow):
         self._repository = repository
         self._publisher = publisher
         self._selected_file: Path | None = None
+        self.asset_browser_widget: AssetBrowserWidget | None = None
 
         self.setWindowTitle(config.project_name)
         self.setMinimumSize(840, 620)
@@ -69,17 +71,31 @@ class MainWindow(QMainWindow):
         title.setFont(title_font)
         root_layout.addWidget(title)
 
-        root_layout.addWidget(self._build_publish_form(root))
-        root_layout.addWidget(self._build_publish_details(root))
+        tabs = QTabWidget(root)
+        tabs.addTab(self._build_publish_tab(tabs), "Publish")
+        self.asset_browser_widget = AssetBrowserWidget(self._repository, tabs)
+        tabs.addTab(self.asset_browser_widget, "Asset Browser")
+        root_layout.addWidget(tabs, stretch=1)
 
-        history_label = QLabel("Publish History", root)
+        return root
+
+    def _build_publish_tab(self, parent: QWidget) -> QWidget:
+        tab = QWidget(parent)
+        root_layout = QVBoxLayout(tab)
+        root_layout.setContentsMargins(0, 10, 0, 0)
+        root_layout.setSpacing(18)
+
+        root_layout.addWidget(self._build_publish_form(tab))
+        root_layout.addWidget(self._build_publish_details(tab))
+
+        history_label = QLabel("Publish History", tab)
         history_font = QFont(history_label.font())
         history_font.setPointSize(12)
         history_font.setBold(True)
         history_label.setFont(history_font)
         root_layout.addWidget(history_label)
 
-        self.history_table = QTableWidget(0, 3, root)
+        self.history_table = QTableWidget(0, 3, tab)
         self.history_table.setHorizontalHeaderLabels(
             ["Version", "Published", "Location"]
         )
@@ -105,7 +121,7 @@ class MainWindow(QMainWindow):
             Qt.WidgetAttribute.WA_TransparentForMouseEvents
         )
 
-        return root
+        return tab
 
     def _build_publish_form(self, parent: QWidget) -> QFrame:
         frame = QFrame(parent)
@@ -130,10 +146,8 @@ class MainWindow(QMainWindow):
         file_layout.addWidget(self.browse_button)
         layout.addRow("Source File", file_row)
 
-        self.category_combo = QComboBox(frame)
-        self.category_combo.addItems(SUPPORTED_CATEGORIES)
-        self.category_combo.currentTextChanged.connect(self._selection_changed)
-        layout.addRow("Asset Category", self.category_combo)
+        self.classification_label = QLabel("Select a supported file", frame)
+        layout.addRow("Destination", self.classification_label)
 
         action_row = QWidget(frame)
         action_layout = QHBoxLayout(action_row)
@@ -195,6 +209,10 @@ class MainWindow(QMainWindow):
         self._selection_changed()
 
     def _selection_changed(self, _value: str = "") -> None:
+        file_type = self._selected_file_type()
+        self.classification_label.setText(
+            file_type.display_name if file_type is not None else "Unsupported file type"
+        )
         self._refresh_asset_information()
         self._update_publish_state()
 
@@ -208,7 +226,6 @@ class MainWindow(QMainWindow):
             if asset is None:
                 asset = self._repository.create_asset(
                     name=self._selected_file.stem,
-                    asset_type=self.category_combo.currentText(),
                 )
 
             publish = self._publisher.publish(self._selected_file, asset.id)
@@ -217,6 +234,8 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage("Publish failed")
         else:
             self._refresh_asset_information(asset)
+            if self.asset_browser_widget is not None:
+                self.asset_browser_widget.refresh()
             self.statusBar().showMessage(
                 f"Published {asset.name} v{publish.version:03d}", 5000
             )
@@ -233,13 +252,11 @@ class MainWindow(QMainWindow):
             return None
 
         asset_name = self._selected_file.stem.casefold()
-        category = self.category_combo.currentText().casefold()
         return next(
             (
                 asset
                 for asset in self._repository.list_assets()
                 if asset.name.casefold() == asset_name
-                and asset.asset_type.casefold() == category
             ),
             None,
         )
@@ -285,25 +302,34 @@ class MainWindow(QMainWindow):
         self.empty_history_label.raise_()
 
     def _expected_publish_location(self) -> str:
-        if self._selected_file is None:
+        file_type = self._selected_file_type()
+        if self._selected_file is None or file_type is None:
             return str(self._config.asset_root)
         return str(
             self._config.asset_root
-            / self.category_combo.currentText()
             / self._selected_file.stem
-            / "Versions"
+            / file_type.relative_directory
         )
+
+    def _selected_file_type(self) -> AssetFileType | None:
+        if self._selected_file is None:
+            return None
+        try:
+            return classify_asset_file(self._selected_file)
+        except ValueError:
+            return None
 
     def _update_publish_state(self) -> None:
         can_publish = (
             self._selected_file is not None
-            and bool(self.category_combo.currentText())
+            and self._selected_file_type() is not None
         )
         self.publish_button.setEnabled(can_publish)
 
     def _set_busy(self, busy: bool) -> None:
         self.browse_button.setEnabled(not busy)
-        self.category_combo.setEnabled(not busy)
-        self.publish_button.setEnabled(not busy and self._selected_file is not None)
         if busy:
+            self.publish_button.setEnabled(False)
             self.statusBar().showMessage("Publishing...")
+        else:
+            self._update_publish_state()
